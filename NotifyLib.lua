@@ -1,25 +1,24 @@
--- Notification Library with callback support
--- Place this as a ModuleScript in ReplicatedStorage or similar
+-- NotifyLib Fixed Version
+-- ModuleScript in ReplicatedStorage
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
 local NotifyLib = {}
 
--- Config
-NotifyLib.BlurFadeTime = 0.5 -- how fast blur fades in/out
+-- ===== CONFIG =====
+NotifyLib.BlurFadeTime = 0.5
 NotifyLib.BlurStrength = 15
 NotifyLib.Width = 320
 NotifyLib.Height = 80
 
--- Queue and state
+-- ===== STATE =====
 NotifyLib.Queue = {}
 NotifyLib.IsShowing = false
-
--- Internal: reference to player's GUI
-local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- GUI container
 local ScreenGui = Instance.new("ScreenGui")
@@ -35,7 +34,7 @@ if not blur then
     blur.Parent = Lighting
 end
 
--- Internal: blur on/off
+-- Internal: toggle blur
 local function setBlur(enabled)
     local target = enabled and NotifyLib.BlurStrength or 0
     TweenService:Create(blur, TweenInfo.new(NotifyLib.BlurFadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -43,7 +42,7 @@ local function setBlur(enabled)
     }):Play()
 end
 
--- Internal: show popup
+-- Internal: show a single popup
 local function showPopup(message, duration, callback)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, NotifyLib.Width, 0, NotifyLib.Height)
@@ -73,19 +72,23 @@ local function showPopup(message, duration, callback)
     setBlur(true)
 
     -- Tween in
-    TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    local tweenIn = TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
         Position = UDim2.new(1, -10, 1, -10)
-    }):Play()
+    })
+    tweenIn:Play()
 
-    -- Hold duration then fade out
-    task.delay(duration, function()
+    tweenIn.Completed:Connect(function()
+        -- Hold duration
+        task.wait(duration)
+        -- Tween out
         local tweenOut = TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
             Position = UDim2.new(1, NotifyLib.Width + 20, 1, -10)
         })
         tweenOut:Play()
-        tweenOut.Completed:Wait()
-        frame:Destroy()
-        if callback then callback() end
+        tweenOut.Completed:Connect(function()
+            frame:Destroy()
+            if callback then callback() end
+        end)
     end)
 end
 
